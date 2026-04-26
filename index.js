@@ -154,6 +154,12 @@ app.delete('/api/vehicles/:id', (req, res) => {
   send(res, true, removed, 'Deleted');
 });
 
+// ================= ERROR HANDLER (500) =================
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ success: false, data: null, message: 'Internal server error' });
+});
+
 // ================= START =================
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
