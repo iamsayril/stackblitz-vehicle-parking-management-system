@@ -7,13 +7,6 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Vehicle API is running 🚀'
-  });
-});
-
 let vehicles = [
   { id: 1, plateNumber: 'ABC-1234', vehicleType: 'Car',        entryTime: new Date(), exitTime: null,       status: 'parked' },
   { id: 2, plateNumber: 'XYZ-5678', vehicleType: 'Motorcycle', entryTime: new Date(), exitTime: null,       status: 'parked' },
@@ -28,48 +21,14 @@ const send = (res, success, data = null, message = null, status = 200) => {
 
 const normalize = (plate) => plate.toLowerCase().replace(/[^a-z0-9]/g, '');
 
+
+app.get('/', (req, res) => {
+  res.json({ success: true, message: 'Vehicle API is running 🚀' });
+});
+
+
 app.get('/api/vehicles', (req, res) => {
   send(res, true, vehicles);
-});
-
-app.get('/api/vehicles/count', (req, res) => {
-  const total  = vehicles.length;
-  const parked = vehicles.filter(v => v.status === 'parked').length;
-  const left   = vehicles.filter(v => v.status === 'left').length;
-  send(res, true, { total, parked, left });
-});
-
-app.get('/api/vehicles/recent', (req, res) => {
-  const recent = vehicles.slice(-5).reverse();
-  send(res, true, recent);
-});
-
-app.get('/api/vehicles/search', (req, res) => {
-  const plate = req.query.plate;
-
-  if (!plate) return send(res, false, null, 'Missing plate query', 400);
-
-  const query  = normalize(plate);
-  const result = vehicles.filter(v =>
-    normalize(v.plateNumber).includes(query)
-  );
-
-  send(res, true, result);
-});
-
-app.get('/api/vehicles/status/parked', (req, res) => {
-  send(res, true, vehicles.filter(v => v.status === 'parked'));
-});
-
-app.get('/api/vehicles/status/left', (req, res) => {
-  send(res, true, vehicles.filter(v => v.status === 'left'));
-});
-
-app.get('/api/vehicles/:id', (req, res) => {
-  const vehicle = vehicles.find(v => v.id == req.params.id);
-  if (!vehicle) return send(res, false, null, 'Vehicle not found', 404);
-
-  send(res, true, vehicle);
 });
 
 app.post('/api/vehicles', (req, res) => {
@@ -79,10 +38,7 @@ app.post('/api/vehicles', (req, res) => {
     return send(res, false, null, 'Missing fields', 400);
   }
 
-  const exists = vehicles.find(v =>
-    normalize(v.plateNumber) === normalize(plateNumber)
-  );
-
+  const exists = vehicles.find(v => normalize(v.plateNumber) === normalize(plateNumber));
   if (exists) return send(res, false, null, 'Plate already exists', 400);
 
   const newVehicle = {
@@ -98,6 +54,43 @@ app.post('/api/vehicles', (req, res) => {
   send(res, true, newVehicle, 'Vehicle added', 201);
 });
 
+
+app.get('/api/vehicles/count', (req, res) => {
+  const total  = vehicles.length;
+  const parked = vehicles.filter(v => v.status === 'parked').length;
+  const left   = vehicles.filter(v => v.status === 'left').length;
+  send(res, true, { total, parked, left });
+});
+
+app.get('/api/vehicles/recent', (req, res) => {
+  const recent = vehicles.slice(-5).reverse();
+  send(res, true, recent);
+});
+
+app.get('/api/vehicles/search', (req, res) => {
+  const plate = req.query.plate;
+  if (!plate) return send(res, false, null, 'Missing plate query', 400);
+
+  const query  = normalize(plate);
+  const result = vehicles.filter(v => normalize(v.plateNumber).includes(query));
+  send(res, true, result);
+});
+
+app.get('/api/vehicles/status/parked', (req, res) => {
+  send(res, true, vehicles.filter(v => v.status === 'parked'));
+});
+
+app.get('/api/vehicles/status/left', (req, res) => {
+  send(res, true, vehicles.filter(v => v.status === 'left'));
+});
+
+
+app.get('/api/vehicles/:id', (req, res) => {
+  const vehicle = vehicles.find(v => v.id == req.params.id);
+  if (!vehicle) return send(res, false, null, 'Vehicle not found', 404);
+  send(res, true, vehicle);
+});
+
 app.put('/api/vehicles/:id', (req, res) => {
   const vehicle = vehicles.find(v => v.id == req.params.id);
   if (!vehicle) return send(res, false, null, 'Vehicle not found', 404);
@@ -106,21 +99,17 @@ app.put('/api/vehicles/:id', (req, res) => {
 
   if (plateNumber) {
     const duplicate = vehicles.find(
-      v => v.id != req.params.id &&
-      normalize(v.plateNumber) === normalize(plateNumber)
+      v => v.id != req.params.id && normalize(v.plateNumber) === normalize(plateNumber)
     );
     if (duplicate) return send(res, false, null, 'Plate already in use', 400);
-
     vehicle.plateNumber = plateNumber;
   }
 
   if (vehicleType) {
     const validTypes = ['Car', 'Motorcycle', 'Truck'];
-
     if (!validTypes.includes(vehicleType)) {
       return send(res, false, null, 'Invalid vehicle type', 400);
     }
-
     vehicle.vehicleType = vehicleType;
   }
 
@@ -128,7 +117,6 @@ app.put('/api/vehicles/:id', (req, res) => {
     if (!['parked', 'left'].includes(status)) {
       return send(res, false, null, 'Invalid status', 400);
     }
-
     vehicle.status = status;
     vehicle.exitTime = status === 'left' ? new Date() : null;
   }
@@ -138,17 +126,18 @@ app.put('/api/vehicles/:id', (req, res) => {
 
 app.delete('/api/vehicles/:id', (req, res) => {
   const index = vehicles.findIndex(v => v.id == req.params.id);
-
   if (index === -1) return send(res, false, null, 'Vehicle not found', 404);
 
   const removed = vehicles.splice(index, 1)[0];
   send(res, true, removed, 'Deleted');
 });
 
+
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ success: false, data: null, message: 'Internal server error' });
 });
+
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
